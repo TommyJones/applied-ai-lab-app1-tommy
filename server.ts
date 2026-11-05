@@ -1,5 +1,7 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
+import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 
@@ -8,18 +10,25 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
-  }
-});
-
 // API endpoint for AI sales summary
 app.post('/api/sales/summary', async (req, res) => {
   try {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    if (!apiKey) {
+      return res.status(400).json({
+        error: 'Gemini API key is not configured. Please set GEMINI_API_KEY in your environment or Settings > Secrets panel.',
+      });
+    }
+
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+
     const { regionalQ2Q3Data, totalQ2Revenue, totalQ3Revenue } = req.body;
 
     const prompt = `You are an expert sales data analyst. Based strictly on the following calculated sales performance numbers for Q2 and Q3 across regions, write a precise three-sentence summary explaining which region changed most from Q2 to Q3, and why, using only numbers the app calculated.
@@ -42,8 +51,9 @@ Strict Rules:
       model: 'gemini-3.8-flash',
       contents: prompt,
       config: {
-        systemInstruction: 'You are a professional corporate finance and sales analyst. Output strictly a three-sentence summary based exclusively on the provided data numbers. No bullet points, exactly three sentences.',
-      }
+        systemInstruction:
+          'You are a professional corporate finance and sales analyst. Output strictly a three-sentence summary based exclusively on the provided data numbers. No bullet points, exactly three sentences.',
+      },
     });
 
     const summary = response.text || 'Unable to generate summary at this time.';
@@ -55,12 +65,21 @@ Strict Rules:
 });
 
 async function startServer() {
-  const vite = await createViteServer({
-    server: { middlewareMode: true },
-    appType: 'spa',
-  });
+  const isProd = process.env.NODE_ENV === 'production';
+  const distPath = path.resolve(process.cwd(), 'dist');
 
-  app.use(vite.middlewares);
+  if (isProd && fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
+    app.get('*', (_req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  } else {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+  }
 
   const port = Number(process.env.PORT) || 3000;
   app.listen(port, '0.0.0.0', () => {
@@ -69,3 +88,4 @@ async function startServer() {
 }
 
 startServer();
+
