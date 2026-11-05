@@ -24,11 +24,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Brand */}
         <div className="flex items-center gap-3 shrink-0">
           <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-md shadow-blue-500/20">
-            M
+            P
           </div>
           <div>
             <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white block leading-tight">
-              Meridian
+              Professor Jones's wonderful application
             </span>
             <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block tracking-wider uppercase">
               Sales Intelligence
